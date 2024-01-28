@@ -42,21 +42,21 @@ const (
 type TaxiTrip struct {
 	gorm.Model
 
-	VendorID             uint     `csv:"VendorID"`
+	VendorID             int      `csv:"VendorID"`
 	TpepPickup           DateTime `csv:"tpep_pickup_datetime"`
 	TpepDropoff          DateTime `csv:"tpep_dropoff_datetime"`
-	PassengerCount       uint     `csv:"passenger_count"`
+	PassengerCount       int      `csv:"passenger_count"`
 	TripDistance         float32  `csv:"trip_distance"`
-	RatecodeID           uint     `csv:"RatecodeID"`
+	RatecodeID           int      `csv:"RatecodeID"`
 	StoreAndFwdFlag      Flag     `csv:"store_and_fwd_flag"`
-	PULocationID         uint     `csv:"PULocationID"`
-	DOLocationID         uint     `csv:"DOLocationID"`
-	PaymentType          uint     `csv:"payment_type"`
-	FareAmount           uint     `csv:"fare_amount"`
-	Extra                uint     `csv:"extra"`
+	PULocationID         int      `csv:"PULocationID"`
+	DOLocationID         int      `csv:"DOLocationID"`
+	PaymentType          int      `csv:"payment_type"`
+	FareAmount           float32  `csv:"fare_amount"`
+	Extra                float32  `csv:"extra"`
 	MtaTax               float32  `csv:"mta_tax"`
-	TipAmount            uint     `csv:"tip_amount"`
-	TollsAmount          uint     `csv:"tolls_amount"`
+	TipAmount            float32  `csv:"tip_amount"`
+	TollsAmount          float32  `csv:"tolls_amount"`
 	ImprovementSurcharge float32  `csv:"improvement_surcharge"`
 	TotalAmount          float32  `csv:"total_amount"`
 	CongestionSurcharge  float32  `csv:"congestion_surcharge"`
@@ -67,7 +67,7 @@ func main() {
 	log.Println("Initializing ingestion...")
 	log.Println("Opening CSV file...")
 
-	file, err := os.OpenFile("/home/ubuntu/Projects/DataTalks/DEZoomcamp/module_1/ny_taxi_csv_data/yellow_tripdata_2021-01_100.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile("/home/ubuntu/Projects/DataTalks/DEZoomcamp/module_1/ny_taxi_csv_data/yellow_tripdata_2021-01.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatal("ERROR loading file: ", err)
 	}
@@ -95,7 +95,7 @@ func main() {
 
 	log.Println("Loading data to table...")
 
-	result := db.Create(taxiTrips)
+	result := db.CreateInBatches(taxiTrips, 1000)
 	if result.Error != nil {
 		log.Fatal("ERROR inserting data: ", err)
 	}
