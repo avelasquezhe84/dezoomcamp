@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql/driver"
 	"log"
 	"os"
 	"time"
@@ -14,6 +15,23 @@ type DateTime struct {
 	time.Time
 }
 
+func (date *DateTime) MarshalCSV() (string, error) {
+	return date.Time.Format("2006-01-02 15:04:05"), nil
+}
+
+func (date *DateTime) UnmarshalCSV(csv string) (err error) {
+	date.Time, err = time.Parse("2006-01-02 15:04:05", csv)
+	return err
+}
+
+func (date *DateTime) Scan(value string) error {
+	return date.UnmarshalCSV(value)
+}
+
+func (date *DateTime) Value() (driver.Value, error) {
+	return date.MarshalCSV()
+}
+
 type Flag string
 
 const (
@@ -21,7 +39,7 @@ const (
 	N Flag = "N"
 )
 
-type Entry struct {
+type TaxiTrip struct {
 	gorm.Model
 
 	VendorID             uint     `csv:"VendorID"`
@@ -48,36 +66,38 @@ func main() {
 	start := time.Now()
 	log.Println("Initializing ingestion...")
 	log.Println("Opening CSV file...")
-	file, err := os.Open("/home/ubuntu/Projects/DataTalks/DEZoomcamp/module_1/ny_taxi_csv_data/yellow_tripdata_2021-01_100.csv")
-	if err != nil {
-		log.Fatal("Error loading file...", err)
-	}
 
+	file, err := os.OpenFile("/home/ubuntu/Projects/DataTalks/DEZoomcamp/module_1/ny_taxi_csv_data/yellow_tripdata_2021-01_100.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		log.Fatal("ERROR loading file: ", err)
+	}
 	defer file.Close()
 
 	log.Println("Loading CSV data...")
-	var entries []Entry
-	err = gocsv.Unmarshal(file, &entries)
-	if err != nil {
-		log.Fatal("Error loading file...", err)
+
+	taxiTrips := []*TaxiTrip{}
+	if err := gocsv.UnmarshalFile(file, &taxiTrips); err != nil {
+		log.Fatal("ERROR reading file: ", err)
 	}
 
 	log.Println("Connecting to database...")
+
 	db, err := gorm.Open(postgres.Open("host=localhost user=root password=root dbname=ny_taxi port=5432 sslmode=disable"))
 	if err != nil {
-		log.Fatal("Error connecting to db...", err)
+		log.Fatal("ERROR connecting to db: ", err)
 	}
 
 	log.Println("Creating table if not exists...")
-	err = db.AutoMigrate(&Entry{})
-	if err != nil {
-		log.Fatal("Error creating table...", err)
+
+	if err := db.AutoMigrate(&TaxiTrip{}); err != nil {
+		log.Fatal("ERROR creating table: ", err)
 	}
 
 	log.Println("Loading data to table...")
-	result := db.Create(entries)
+
+	result := db.Create(taxiTrips)
 	if result.Error != nil {
-		log.Fatal("Error inserting data...", err)
+		log.Fatal("ERROR inserting data: ", err)
 	}
 
 	elapsed := time.Since(start)
